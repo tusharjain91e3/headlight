@@ -1,8 +1,8 @@
 'use client';
 
 export function WatchlistButton({
-  inList, full, onToggle, compact = false,
-}: { inList: boolean; full: boolean; onToggle: () => void; compact?: boolean }) {
+  inList, full, onToggle, compact = false, listName,
+}: { inList: boolean; full: boolean; onToggle: () => void; compact?: boolean; listName?: string }) {
   const disabled = !inList && full;
   const base = `shrink-0 rounded-full border text-sm font-medium transition-colors ${compact ? 'px-3 py-1' : 'px-4 py-2'}`;
   const tone = inList
@@ -16,7 +16,7 @@ export function WatchlistButton({
       className={`${base} ${tone} disabled:cursor-not-allowed disabled:opacity-50`}
       aria-pressed={inList}
     >
-      {inList ? '✓ In watchlist' : disabled ? 'Watchlist full' : '+ Add to watchlist'}
+      {inList ? `✓ In ${listName ?? 'watchlist'}` : disabled ? 'List full' : `+ Add to ${listName ?? 'watchlist'}`}
     </button>
   );
 }

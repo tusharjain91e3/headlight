@@ -1,7 +1,8 @@
 'use client';
 import { timeAgo } from '@/lib/time';
 
-export type Tab = 'watchlist' | 'search';
+export type Tab = 'watchlist' | 'pulse' | 'search' | 'compare';
+const TABS: Tab[] = ['watchlist', 'pulse', 'search', 'compare'];
 
 export function Header({
   tab, onTab, count, lastUpdated, onRefresh, refreshing,
@@ -14,10 +15,10 @@ export function Header({
             <circle cx="9" cy="12" r="5.5" fill="currentColor" />
             <path d="M16 8l6-3M16 12h6M16 16l6 3" stroke="var(--neu)" strokeWidth="2" strokeLinecap="round" />
           </svg>
-          Headlight
+          <span className="hidden sm:inline">Headlight</span>
         </div>
         <nav className="ml-1 flex gap-0.5 sm:ml-4 sm:gap-1" aria-label="Views">
-          {(['watchlist', 'search'] as Tab[]).map((t) => (
+          {TABS.map((t) => (
             <button
               key={t}
               type="button"

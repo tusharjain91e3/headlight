@@ -2,6 +2,8 @@
 import { LABEL_META } from '@/lib/sentiment-ui';
 import type { SentimentResult } from '@/lib/types';
 import type { Status } from '@/hooks/useSentiment';
+import type { Prev } from '@/lib/changes';
+import { ChangeBadge } from './ChangeBadge';
 import { SentimentPill } from './SentimentPill';
 
 interface Props {
@@ -10,11 +12,12 @@ interface Props {
   result?: SentimentResult;
   status?: Status;
   error?: string;
+  change?: Prev;
   onOpen: () => void;
   onRetry: () => void;
 }
 
-export function StockCard({ symbol, name, result, status, error, onOpen, onRetry }: Props) {
+export function StockCard({ symbol, name, result, status, error, change, onOpen, onRetry }: Props) {
   if (!result && status === 'error') {
     return (
       <div className="flex items-center gap-3 border-l-2 border-[var(--unk)] px-4 py-3.5">
@@ -53,6 +56,7 @@ export function StockCard({ symbol, name, result, status, error, onOpen, onRetry
         </div>
         <SentimentPill label={result.label} />
       </button>
+      {change && <div className="px-4 pb-3 -mt-1"><ChangeBadge from={change.label} to={result.label} at={change.changedAt} /></div>}
       {status === 'error' && (
         <p className="px-4 pb-3 text-xs text-[var(--muted)]">
           Update failed.{' '}

@@ -1,9 +1,11 @@
 'use client';
-import { LABEL_META, LABEL_ORDER } from '@/lib/sentiment-ui';
+import { LABEL_ORDER } from '@/lib/sentiment-ui';
+import type { Prev } from '@/lib/changes';
 import type { Label, SentimentResult } from '@/lib/types';
 import type { Status } from '@/hooks/useSentiment';
 import { DISCLAIMER } from './StockDetail';
 import { SentimentSection } from './SentimentSection';
+import { SpectrumBar } from './SpectrumBar';
 import { StockCard } from './StockCard';
 
 interface Props {
@@ -13,6 +15,7 @@ interface Props {
   results: Record<string, SentimentResult>;
   status: Record<string, Status>;
   errors: Record<string, string>;
+  changes: Record<string, Prev>;
   names: Record<string, string>;
   onOpen: (symbol: string) => void;
   onRetry: (symbol: string) => void;
@@ -21,7 +24,7 @@ interface Props {
 
 const up = (s: string) => s.toUpperCase();
 
-export function WatchlistView({ symbols, ready, storageOk, results, status, errors, names, onOpen, onRetry, onGoSearch }: Props) {
+export function WatchlistView({ symbols, ready, storageOk, results, status, errors, changes, names, onOpen, onRetry, onGoSearch }: Props) {
   if (!ready) {
     return (
       <div className="mt-8 space-y-3" aria-busy="true">
@@ -62,32 +65,15 @@ export function WatchlistView({ symbols, ready, storageOk, results, status, erro
     else if (status[up(s)] === 'error') failed.push(s);
     else pending.push(s);
   }
-  const total = LABEL_ORDER.reduce((n, l) => n + buckets[l].length, 0);
   const card = (s: string) => (
-    <StockCard key={s} symbol={s} name={names[up(s)] ?? results[up(s)]?.name ?? ''} result={results[up(s)]} status={status[up(s)]} error={errors[up(s)]}
+    <StockCard key={s} symbol={s} name={names[up(s)] ?? results[up(s)]?.name ?? ''} result={results[up(s)]} status={status[up(s)]} error={errors[up(s)]} change={changes[up(s)]}
       onOpen={() => onOpen(s)} onRetry={() => onRetry(s)} />
   );
 
   return (
     <div className="mt-6">
       {notice}
-      <div aria-label="Sentiment across your watchlist">
-        <div className="flex h-3 w-full gap-0.5 overflow-hidden rounded-full bg-[var(--border)]" role="img"
-          aria-label={LABEL_ORDER.map((l) => `${buckets[l].length} ${LABEL_META[l].text}`).join(', ')}>
-          {total > 0 && LABEL_ORDER.map((l) => buckets[l].length > 0 && (
-            <div key={l} style={{ flexGrow: buckets[l].length, background: `var(${LABEL_META[l].varName})` }} />
-          ))}
-        </div>
-        <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm">
-          {LABEL_ORDER.map((l) => (
-            <li key={l} className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full" style={{ background: `var(${LABEL_META[l].varName})` }} aria-hidden />
-              <span className="tnum font-semibold">{buckets[l].length}</span>
-              <span className="text-[var(--muted)]">{LABEL_META[l].text}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
+      <SpectrumBar label="Sentiment across this list" counts={{ positive: buckets.positive.length, neutral: buckets.neutral.length, negative: buckets.negative.length, cannot_determine: buckets.cannot_determine.length }} />
 
       {pending.length > 0 && (
         <section className="mt-8" aria-label="Analyzing">

@@ -15,9 +15,11 @@ interface BodyProps {
   full: boolean;
   onToggle: () => void;
   onRefresh?: () => void;
+  onCompare?: () => void;
+  listName?: string;
 }
 
-export function StockDetailBody({ result, inList, full, onToggle, onRefresh }: BodyProps) {
+export function StockDetailBody({ result, inList, full, onToggle, onRefresh, onCompare, listName }: BodyProps) {
   const v = LABEL_META[result.label].varName;
   const pct = Math.round(result.confidence * 100);
   return (
@@ -27,7 +29,7 @@ export function StockDetailBody({ result, inList, full, onToggle, onRefresh }: B
           <h2 className="text-2xl font-semibold tracking-tight">{result.symbol}</h2>
           <p className="truncate text-sm text-[var(--muted)]">{result.name}</p>
         </div>
-        <WatchlistButton inList={inList} full={full} onToggle={onToggle} />
+        <WatchlistButton inList={inList} full={full} onToggle={onToggle} listName={listName} />
       </div>
 
       <div className="mt-6 flex items-center gap-4">
@@ -68,7 +70,10 @@ export function StockDetailBody({ result, inList, full, onToggle, onRefresh }: B
 
       <div className="mt-6 flex items-center justify-between gap-3 text-xs text-[var(--muted)]">
         <span>Analyzed {timeAgo(result.generated_at)}{result.cached ? ' (cached)' : ''}{result.stale ? ' · showing older data' : ''}</span>
-        {onRefresh && <button type="button" onClick={onRefresh} className="rounded-full border border-[var(--border)] px-3 py-1 font-medium text-[var(--text)] hover:border-[var(--text)]">Refresh</button>}
+        <span className="flex gap-2">
+          {onCompare && <button type="button" onClick={onCompare} className="rounded-full border border-[var(--border)] px-3 py-1 font-medium text-[var(--text)] hover:border-[var(--text)]">Compare with…</button>}
+          {onRefresh && <button type="button" onClick={onRefresh} className="rounded-full border border-[var(--border)] px-3 py-1 font-medium text-[var(--text)] hover:border-[var(--text)]">Refresh</button>}
+        </span>
       </div>
       <p className="mt-4 text-xs text-[var(--muted)]">{DISCLAIMER}</p>
     </div>
