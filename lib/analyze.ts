@@ -50,11 +50,12 @@ export async function analyzeStock(symbol: string, opts: { refresh?: boolean } =
     return r;
   }
 
-  const llm = await classify(stock, articles);
+  const diag: { reason?: string } = {};
+  const llm = await classify(stock, articles, diag);
   if (!llm) {
     const stale = cache.getStale(key);
     if (stale) return { ...stale, cached: true, stale: true };
-    throw new AnalysisUnavailable('LLM returned no usable result');
+    throw new AnalysisUnavailable(diag.reason ?? 'LLM returned no usable result');
   }
 
   const byIndex = new Map(llm.items.map((i) => [i.index, i]));

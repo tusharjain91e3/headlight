@@ -11,10 +11,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ symbol: 
   try {
     return NextResponse.json(await analyzeStock(decodeURIComponent(symbol), { refresh }));
   } catch (e) {
-    if (e instanceof UnknownSymbol) return NextResponse.json({ error: 'Stock not available in this app.' }, { status: 404 });
-    if (e instanceof ConfigError) return NextResponse.json({ error: e.message }, { status: 500 });
-    if (e instanceof AnalysisUnavailable) return NextResponse.json({ error: 'Analysis is temporarily unavailable. Try again shortly.' }, { status: 502 });
-    console.error('analyze failed', e);
-    return NextResponse.json({ error: 'Analysis failed' }, { status: 502 });
+    const reason = e instanceof Error ? e.message : String(e);
+    let status = 502;
+    let error = 'Analysis failed';
+    if (e instanceof UnknownSymbol) { status = 404; error = 'Stock not available in this app.'; }
+    else if (e instanceof ConfigError) { status = 500; error = e.message; }
+    else if (e instanceof AnalysisUnavailable) error = 'Analysis is temporarily unavailable. Try again shortly.';
+    console.error(`[api/sentiment/${symbol}] ${status} ${error} | reason: ${reason}`);
+    return NextResponse.json({ error, reason }, { status });
   }
 }

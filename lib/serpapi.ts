@@ -56,5 +56,6 @@ export async function fetchNews(stock: Stock): Promise<RawNews[]> {
       if (attempt < 2) await sleep(600 * 2 ** attempt);
     }
   }
+  console.error(`[serpapi] ${stock.symbol}: ${lastErr}`);
   throw new NewsUnavailable(lastErr);
 }

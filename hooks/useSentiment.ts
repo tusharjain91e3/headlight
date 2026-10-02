@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { logApiError } from '@/lib/client-log';
 import { LABEL_ORDER } from '@/lib/sentiment-ui';
 import type { SentimentResult } from '@/lib/types';
 
@@ -78,10 +79,12 @@ export function useSentiment(symbols: string[], opts: { onUnknown?: (symbol: str
         return;
       }
       const data = await res.json().catch(() => ({}));
+      if (!res.ok) logApiError(`/api/sentiment/${sym}`, res.status, data);
       if (!res.ok) throw new Error(data?.error ?? `Request failed (${res.status})`);
       if (!isResult(data)) throw new Error('Unexpected response from the server');
       store(data);
     } catch (e) {
+      console.error(`[Headlight] /api/sentiment/${sym} failed:`, (e as Error).message);
       setErrors((x) => ({ ...x, [k]: (e as Error).message || 'Request failed' }));
       setStatus((s) => ({ ...s, [k]: 'error' }));
     }

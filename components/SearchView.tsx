@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { logApiError } from '@/lib/client-log';
 import type { SentimentResult } from '@/lib/types';
 import { StockDetailBody } from './StockDetail';
 import { WatchlistButton } from './WatchlistButton';
@@ -52,6 +53,7 @@ export function SearchView({ has, full, onToggle, onResult, results }: Props) {
     try {
       const res = await fetch(`/api/sentiment/${encodeURIComponent(s.symbol)}${force ? '?refresh=1' : ''}`);
       const data = await res.json().catch(() => ({}));
+      if (!res.ok) logApiError(`/api/sentiment/${s.symbol}`, res.status, data);
       if (!res.ok) throw new Error(data?.error ?? `Request failed (${res.status})`);
       onResult(data as SentimentResult);
       setState('ok');

@@ -29,7 +29,9 @@ async function complete(messages: Msg[]): Promise<string> {
       lastErr = 'empty completion';
       continue;
     }
-    lastErr = `OpenRouter ${res.status}`;
+    const detail = (await res.text().catch(() => '')).slice(0, 300);
+    lastErr = `OpenRouter ${res.status}${detail ? `: ${detail}` : ''}`;
+    console.error(`[openrouter] ${lastErr}`);
     if (res.status === 401 || res.status === 403) throw new ConfigError('OpenRouter rejected the API key');
     if (useSchema && [400, 404, 422].includes(res.status)) {
       useSchema = false; // model doesn't support structured output
@@ -44,18 +46,29 @@ async function complete(messages: Msg[]): Promise<string> {
   throw new Error(lastErr);
 }
 
-export async function classify(stock: Stock, articles: Article[]): Promise<LlmOutputT | null> {
+export async function classify(
+  stock: Stock,
+  articles: Article[],
+  diag: { reason?: string } = {},
+): Promise<LlmOutputT | null> {
   try {
     const user = buildUserPrompt(stock, articles);
     const base: Msg[] = [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: user }];
     const first = await complete(base);
     const p1 = parseLlmJson(first, articles.length);
     if (p1.ok) return p1.data;
+    console.warn(`[openrouter] ${stock.symbol}: invalid JSON from model (${p1.error}); retrying once`);
     const second = await complete([...base, { role: 'user', content: buildRepairPrompt(p1.error, user) }]);
     const p2 = parseLlmJson(second, articles.length);
+    if (!p2.ok) {
+      diag.reason = `Model output failed validation after repair: ${p2.error}`;
+      console.error(`[openrouter] ${stock.symbol}: ${diag.reason}`);
+    }
     return p2.ok ? p2.data : null;
   } catch (e) {
     if (e instanceof ConfigError) throw e;
+    diag.reason = (e as Error).message;
+    console.error(`[openrouter] ${stock.symbol}: ${diag.reason}`);
     return null;
   }
 }
