@@ -4,6 +4,7 @@ import { resolve } from 'path';
 
 export default defineConfig({
   plugins: [react()],
-  test: { environment: 'jsdom', include: ['tests/**/*.test.{ts,tsx}'] },
+  css: { postcss: { plugins: [] } },
+  test: { globals: true, environment: 'jsdom', include: ['tests/**/*.test.{ts,tsx}'] },
   resolve: { alias: { '@': resolve(__dirname) } },
 });
