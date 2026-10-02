@@ -23,6 +23,12 @@ export function parseDate(iso?: string, rel?: string, now: Date = new Date()): D
     const d = new Date(normalized);
     if (!isNaN(d.getTime())) return d;
   }
+  const g = (iso ?? rel)?.trim().match(/^(\d{2})\/(\d{2})\/(\d{4}),\s*(\d{1,2}):(\d{2})\s*(AM|PM),\s*\+0000 UTC$/i);
+  if (g) {
+    let h = Number(g[4]) % 12;
+    if (g[6].toUpperCase() === 'PM') h += 12;
+    return new Date(Date.UTC(Number(g[3]), Number(g[1]) - 1, Number(g[2]), h, Number(g[5])));
+  }
   const m = rel?.trim().match(/^(\d+)\s+(minute|hour|day|week)s?\s+ago$/i);
   if (m) return new Date(now.getTime() - Number(m[1]) * UNIT_MS[m[2].toLowerCase()]);
   return null;

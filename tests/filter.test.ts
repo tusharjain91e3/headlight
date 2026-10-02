@@ -52,3 +52,7 @@ describe('filterArticles', () => {
   test('truncates snippet to 300 chars', () =>
     expect(filterArticles(raw, tcs, { days: 7, max: 10, now })[1].snippet.length).toBeLessThanOrEqual(300));
 });
+
+test('parseDate handles SerpApi Google News "MM/DD/YYYY, hh:mm AM, +0000 UTC"', () => {
+  expect(parseDate(undefined, '09/30/2026, 06:15 PM, +0000 UTC', now)?.toISOString()).toBe('2026-09-30T18:15:00.000Z');
+});
