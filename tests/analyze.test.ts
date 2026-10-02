@@ -7,7 +7,7 @@ import { analyzeStock } from '@/lib/analyze';
 import { fetchNews } from '@/lib/serpapi';
 import { classify } from '@/lib/openrouter';
 import { cache } from '@/lib/cache';
-import { NewsUnavailable, UnknownSymbol, ConfigError } from '@/lib/errors';
+import { NewsUnavailable, UnknownSymbol, ConfigError, AnalysisUnavailable } from '@/lib/errors';
 
 const iso = (hoursAgo: number) => new Date(Date.now() - hoursAgo * 3_600_000).toISOString();
 const news = (n: number) =>
@@ -66,10 +66,31 @@ test('refresh within 5 minutes of the last refresh still serves cache', async ()
   expect(fetchNews).toHaveBeenCalledTimes(2);
 });
 
-test('classify failure → cannot_determine', async () => {
+test('LLM outage with nothing cached throws AnalysisUnavailable (never a fake grey result)', async () => {
   vi.mocked(fetchNews).mockResolvedValue(news(2));
   vi.mocked(classify).mockResolvedValue(null);
-  expect((await analyzeStock('TCS')).label).toBe('cannot_determine');
+  await expect(analyzeStock('TCS')).rejects.toBeInstanceOf(AnalysisUnavailable);
+});
+
+test('LLM outage serves the stale cached result instead', async () => {
+  vi.mocked(fetchNews).mockResolvedValue(news(2));
+  vi.mocked(classify).mockResolvedValueOnce(llmOut(['positive', 'positive']) as never);
+  const first = await analyzeStock('TCS');
+  cache.set('TCS', first, -1);
+  vi.mocked(classify).mockResolvedValue(null);
+  const r = await analyzeStock('TCS');
+  expect(r.label).toBe('positive');
+  expect(r.stale).toBe(true);
+});
+
+test('news-outage placeholder is flagged transient so clients do not persist it', async () => {
+  vi.mocked(fetchNews).mockRejectedValue(new NewsUnavailable('down'));
+  expect((await analyzeStock('TCS')).transient).toBe(true);
+});
+
+test('invalid SerpApi key (ConfigError) propagates', async () => {
+  vi.mocked(fetchNews).mockRejectedValue(new ConfigError('SerpApi rejected the API key'));
+  await expect(analyzeStock('TCS')).rejects.toBeInstanceOf(ConfigError);
 });
 
 test('low confidence downgrades to cannot_determine', async () => {

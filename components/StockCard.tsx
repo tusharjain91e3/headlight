@@ -41,30 +41,24 @@ export function StockCard({ symbol, name, result, status, error, onOpen, onRetry
   }
   const v = LABEL_META[result.label].varName;
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="flex w-full items-start gap-3 border-l-2 px-4 py-3.5 text-left transition-colors hover:bg-[var(--surface)]"
-      style={{ borderColor: `var(${v})` }}
-    >
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-2">
-          <span className="font-semibold tracking-tight">{symbol}</span>
-          <span className="truncate text-sm text-[var(--muted)]">{name}</span>
+    <div className="border-l-2 transition-colors hover:bg-[var(--surface)]" style={{ borderColor: `var(${v})` }}>
+      <button type="button" onClick={onOpen} className="flex w-full items-start gap-3 px-4 py-3.5 text-left">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline gap-2">
+            <span className="font-semibold tracking-tight">{symbol}</span>
+            <span className="truncate text-sm text-[var(--muted)]">{name}</span>
+          </div>
+          <p className="mt-0.5 line-clamp-2 text-sm text-[var(--muted)]">{result.rationale}</p>
+          {status === 'stale' && <span className="mt-1 inline-block text-xs text-[var(--muted)]">Refreshing…</span>}
         </div>
-        <p className="mt-0.5 line-clamp-2 text-sm text-[var(--muted)]">{result.rationale}</p>
-        {status === 'stale' && <span className="mt-1 inline-block text-xs text-[var(--muted)]">Refreshing…</span>}
-        {status === 'error' && (
-          <span className="mt-1 inline-block text-xs text-[var(--muted)]">
-            Update failed.{' '}
-            <span role="button" tabIndex={0} className="underline" onClick={(e) => { e.stopPropagation(); onRetry(); }}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onRetry(); } }}>
-              Retry
-            </span>
-          </span>
-        )}
-      </div>
-      <SentimentPill label={result.label} />
-    </button>
+        <SentimentPill label={result.label} />
+      </button>
+      {status === 'error' && (
+        <p className="px-4 pb-3 text-xs text-[var(--muted)]">
+          Update failed.{' '}
+          <button type="button" onClick={onRetry} className="underline">Retry</button>
+        </p>
+      )}
+    </div>
   );
 }

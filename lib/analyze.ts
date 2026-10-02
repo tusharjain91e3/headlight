@@ -2,7 +2,7 @@ import { aggregate } from './aggregate';
 import { cache } from './cache';
 import { demoResult } from './demo';
 import { serverEnv } from './env';
-import { NewsUnavailable, UnknownSymbol } from './errors';
+import { AnalysisUnavailable, NewsUnavailable, UnknownSymbol } from './errors';
 import { filterArticles } from './filter';
 import { classify } from './openrouter';
 import { fetchNews } from './serpapi';
@@ -40,7 +40,7 @@ export async function analyzeStock(symbol: string, opts: { refresh?: boolean } =
     if (!(e instanceof NewsUnavailable)) throw e;
     const stale = cache.getStale(key);
     if (stale) return { ...stale, cached: true, stale: true };
-    return empty(stock, 'News unavailable.');
+    return { ...empty(stock, 'News unavailable.'), transient: true };
   }
 
   const articles = filterArticles(raw, stock, { days: env.windowDays, max: env.maxArticles });
@@ -51,7 +51,11 @@ export async function analyzeStock(symbol: string, opts: { refresh?: boolean } =
   }
 
   const llm = await classify(stock, articles);
-  if (!llm) return empty(stock, 'Analysis unavailable.');
+  if (!llm) {
+    const stale = cache.getStale(key);
+    if (stale) return { ...stale, cached: true, stale: true };
+    throw new AnalysisUnavailable('LLM returned no usable result');
+  }
 
   const byIndex = new Map(llm.items.map((i) => [i.index, i]));
   const labeled = articles.map((a, i) => ({

@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { LABEL_ORDER } from '@/lib/sentiment-ui';
 import type { SentimentResult } from '@/lib/types';
 
 export type Status = 'loading' | 'ok' | 'error' | 'stale';
@@ -9,12 +10,24 @@ const TTL_MS = 60 * 60_000;
 const CONCURRENCY = 3;
 const up = (s: string) => s.trim().toUpperCase();
 
+function isResult(v: unknown): v is SentimentResult {
+  const r = v as SentimentResult;
+  return !!r && typeof r === 'object' && typeof r.symbol === 'string' && typeof r.name === 'string'
+    && LABEL_ORDER.includes(r.label) && typeof r.confidence === 'number' && typeof r.rationale === 'string'
+    && Array.isArray(r.articles) && typeof r.generated_at === 'string';
+}
+
 type Cache = Record<string, { result: SentimentResult; at: number }>;
 
 function readCache(): Cache {
   try {
     const p = JSON.parse(localStorage.getItem(KEY) ?? '{}');
-    return p && typeof p === 'object' && !Array.isArray(p) ? p : {};
+    if (!p || typeof p !== 'object' || Array.isArray(p)) return {};
+    const clean: Cache = {};
+    for (const [k, v] of Object.entries(p as Cache)) {
+      if (v && typeof v.at === 'number' && isResult(v.result)) clean[k] = v;
+    }
+    return clean;
   } catch {
     return {};
   }
@@ -42,8 +55,10 @@ export function useSentiment(symbols: string[], opts: { onUnknown?: (symbol: str
 
   const store = useCallback((result: SentimentResult) => {
     const k = up(result.symbol);
-    cacheRef.current = { ...cacheRef.current, [k]: { result, at: Date.now() } };
-    writeCache(cacheRef.current);
+    if (!result.transient) {
+      cacheRef.current = { ...cacheRef.current, [k]: { result, at: Date.now() } };
+      writeCache(cacheRef.current);
+    }
     setResults((r) => ({ ...r, [k]: result }));
     setStatus((s) => ({ ...s, [k]: 'ok' }));
     setErrors((e) => {
@@ -64,7 +79,8 @@ export function useSentiment(symbols: string[], opts: { onUnknown?: (symbol: str
       }
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? `Request failed (${res.status})`);
-      store(data as SentimentResult);
+      if (!isResult(data)) throw new Error('Unexpected response from the server');
+      store(data);
     } catch (e) {
       setErrors((x) => ({ ...x, [k]: (e as Error).message || 'Request failed' }));
       setStatus((s) => ({ ...s, [k]: 'error' }));

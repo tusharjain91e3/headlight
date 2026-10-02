@@ -1,5 +1,5 @@
 import { serverEnv } from './env';
-import { NewsUnavailable } from './errors';
+import { ConfigError, NewsUnavailable } from './errors';
 import type { RawNews } from './filter';
 import type { Stock } from './types';
 
@@ -37,6 +37,7 @@ export async function fetchNews(stock: Stock): Promise<RawNews[]> {
         if (attempt < 2) await sleep(600 * 2 ** attempt);
         continue;
       }
+      if (res.status === 401 || res.status === 403) throw new ConfigError('SerpApi rejected the API key');
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new NewsUnavailable(data?.error ?? `SerpApi ${res.status}`);
       if (data.error) {
@@ -50,7 +51,7 @@ export async function fetchNews(stock: Stock): Promise<RawNews[]> {
       }
       return out;
     } catch (e) {
-      if (e instanceof NewsUnavailable) throw e;
+      if (e instanceof NewsUnavailable || e instanceof ConfigError) throw e;
       lastErr = (e as Error).message;
       if (attempt < 2) await sleep(600 * 2 ** attempt);
     }

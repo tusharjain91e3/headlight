@@ -92,3 +92,27 @@ test('corrupt cache is ignored', async () => {
   const { result } = renderHook(() => useSentiment(['TCS']));
   await waitFor(() => expect(result.current.status.TCS).toBe('ok'));
 });
+
+test('malformed cache entries are ignored and refetched instead of crashing consumers', async () => {
+  localStorage.setItem(KEY, JSON.stringify({ TCS: { result: { symbol: 'TCS' }, at: Date.now() } }));
+  const f = vi.fn((url: string) => json(mk(symOf(url), 'neutral')));
+  vi.stubGlobal('fetch', f);
+  const { result } = renderHook(() => useSentiment(['TCS']));
+  await waitFor(() => expect(result.current.results.TCS?.label).toBe('neutral'));
+  expect(f).toHaveBeenCalledTimes(1);
+});
+
+test('transient results are shown but not persisted', async () => {
+  vi.stubGlobal('fetch', vi.fn(() => json({ ...mk('TCS', 'cannot_determine'), transient: true })));
+  const { result } = renderHook(() => useSentiment(['TCS']));
+  await waitFor(() => expect(result.current.status.TCS).toBe('ok'));
+  expect(result.current.results.TCS.label).toBe('cannot_determine');
+  expect(JSON.parse(localStorage.getItem(KEY) ?? '{}').TCS).toBeUndefined();
+});
+
+test('a malformed API payload is an error, not a stored result', async () => {
+  vi.stubGlobal('fetch', vi.fn(() => json({ hello: 'world' })));
+  const { result } = renderHook(() => useSentiment(['TCS']));
+  await waitFor(() => expect(result.current.status.TCS).toBe('error'));
+  expect(result.current.results.TCS).toBeUndefined();
+});

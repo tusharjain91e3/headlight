@@ -31,4 +31,6 @@ export interface SentimentResult {
   generated_at: string;
   cached: boolean;
   stale?: boolean;
+  /** Placeholder for a temporary upstream failure; clients must not persist it. */
+  transient?: boolean;
 }
