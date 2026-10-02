@@ -70,3 +70,8 @@ test('network failure → null (never throws)', async () => {
   vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('boom'))));
   expect(await classify(tcs, arts)).toBeNull();
 });
+
+test('401 from OpenRouter surfaces as a ConfigError instead of a silent null', async () => {
+  vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('{"error":{"message":"API key expired."}}', { status: 401 }))));
+  await expect(classify(tcs, arts)).rejects.toThrow('OpenRouter rejected the API key');
+});

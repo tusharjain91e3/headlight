@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Headlight
 
-## Getting Started
+Shine a light on the news behind your stocks. Headlight reads the last 7 days of Google News for any NSE-listed company, has an LLM classify each headline, and tells you at a glance whether the coverage is **Positive**, **Neutral**, **Negative**, or **Cannot determine**.
 
-First, run the development server:
+- Build a watchlist (stored in your browser only; no sign-in) and see it grouped by sentiment.
+- Search any of the 2,592 NSE stocks for a one-off read, then add it with one tap.
+- Open any stock to see the articles behind its label, with a per-article verdict.
+
+> Sentiment is generated automatically from headlines and snippets. It is not investment advice.
+
+## Run it
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+# fill in .env.local (see below)
+npm run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+No keys yet? Set `DEMO_MODE=1` in `.env.local` to serve canned sample results.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Variable | Purpose |
+| --- | --- |
+| `OPENROUTER_API_KEY` | OpenRouter key (server-side only) |
+| `OPENROUTER_MODEL` | Model ID from openrouter.ai/models (a free model works) |
+| `OPENROUTER_BASE_URL` | Defaults to `https://openrouter.ai/api/v1` |
+| `SERPAPI_API_KEY` | SerpApi key for Google News |
+| `CACHE_TTL_MINUTES` | Server cache per stock (default 60) |
+| `MAX_ARTICLES_PER_STOCK` | Default 10 |
+| `NEWS_WINDOW_DAYS` | Default 7 |
+| `NEXT_PUBLIC_MAX_WATCHLIST_SIZE` | Default 25 |
+| `DEMO_MODE` | `1` = canned results, no keys needed |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## How it works
 
-## Learn More
+```
+Browser (localStorage: watchlist + last results)
+   └─ GET /api/sentiment/[symbol]   (concurrency 3, one stock per call)
+        ├─ cache (in-memory TTL)  ── hit → return
+        ├─ SerpApi google_news     "<company>" NSE stock when:7d
+        ├─ filter: 7-day window, dedupe, relevance, cap 10
+        ├─ OpenRouter: ONE call per stock → per-article labels + overall
+        └─ aggregate: ≥60% rule, 48h recency 1.5×, confidence < 0.4 → Cannot determine
+```
 
-To learn more about Next.js, take a look at the following resources:
+- Zero recent articles skips the LLM entirely ("No recent news.").
+- Invalid LLM JSON gets one repair retry, then falls back to Cannot determine.
+- API keys are only read in route handlers and never reach the browser.
+- Manual refresh is limited to once per stock every 5 minutes.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Develop
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm test         # unit tests (filter, dedupe, aggregation, schema, search, hooks, pipeline)
+npm run lint
+npm run build
+```
+Specs and plan live in `docs/`.

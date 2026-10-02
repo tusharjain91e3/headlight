@@ -1,4 +1,5 @@
 import { serverEnv } from './env';
+import { ConfigError } from './errors';
 import { buildRepairPrompt, buildUserPrompt, JSON_SCHEMA, SYSTEM_PROMPT } from './prompts';
 import { parseLlmJson, type LlmOutputT } from './schema';
 import type { Article, Stock } from './types';
@@ -29,6 +30,7 @@ async function complete(messages: Msg[]): Promise<string> {
       continue;
     }
     lastErr = `OpenRouter ${res.status}`;
+    if (res.status === 401 || res.status === 403) throw new ConfigError('OpenRouter rejected the API key');
     if (useSchema && [400, 404, 422].includes(res.status)) {
       useSchema = false; // model doesn't support structured output
       continue;
@@ -52,7 +54,8 @@ export async function classify(stock: Stock, articles: Article[]): Promise<LlmOu
     const second = await complete([...base, { role: 'user', content: buildRepairPrompt(p1.error, user) }]);
     const p2 = parseLlmJson(second, articles.length);
     return p2.ok ? p2.data : null;
-  } catch {
+  } catch (e) {
+    if (e instanceof ConfigError) throw e;
     return null;
   }
 }
