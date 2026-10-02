@@ -47,7 +47,8 @@ export function useSentiment(symbols: string[], opts: { onUnknown?: (symbol: str
     setResults((r) => ({ ...r, [k]: result }));
     setStatus((s) => ({ ...s, [k]: 'ok' }));
     setErrors((e) => {
-      const { [k]: _drop, ...rest } = e;
+      const rest = { ...e };
+      delete rest[k];
       return rest;
     });
   }, []);

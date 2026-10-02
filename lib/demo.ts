@@ -36,19 +36,19 @@ const SEEDS: Record<string, Seed> = {
       ['HDFC Bank launches new SME lending product', 'Economic Times', 'positive', 'New product launch.', 66],
     ],
   },
-  TATAMOTORS: {
+  TMPV: {
     label: 'negative', confidence: 0.7, rationale: 'Production disruption and a rating downgrade dominate recent coverage.',
     items: [
-      ['Tata Motors cuts output after supply disruption', 'Reuters', 'negative', 'Production disruption.', 9],
-      ['Tata Motors downgraded by global brokerage on margin worries', 'Bloomberg', 'negative', 'Analyst downgrade.', 26],
-      ['Tata Motors showcases new EV concept', 'Autocar India', 'positive', 'New product showcase.', 50],
+      ['Tata Motors Passenger Vehicles cuts output after supply disruption', 'Reuters', 'negative', 'Production disruption.', 9],
+      ['Tata Motors PV downgraded by global brokerage on margin worries', 'Bloomberg', 'negative', 'Analyst downgrade.', 26],
+      ['Tata Motors PV showcases new EV concept', 'Autocar India', 'positive', 'New product showcase.', 50],
     ],
   },
-  ZOMATO: {
+  ETERNAL: {
     label: 'positive', confidence: 0.78, rationale: 'Strong order growth and improving profitability drive favorable coverage.',
     items: [
-      ['Zomato quick-commerce orders jump sharply quarter on quarter', 'Moneycontrol', 'positive', 'Strong order growth.', 7],
-      ['Zomato turns profitable in food delivery segment, says report', 'Mint', 'positive', 'Profitability improving.', 33],
+      ['Eternal (Zomato) quick-commerce orders jump sharply quarter on quarter', 'Moneycontrol', 'positive', 'Strong order growth.', 7],
+      ['Eternal turns profitable in food delivery segment, says report', 'Mint', 'positive', 'Profitability improving.', 33],
     ],
   },
   ADANIENT: {

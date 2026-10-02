@@ -38,3 +38,10 @@ body {
 
 @keyframes shimmer { 0% { opacity: .55 } 50% { opacity: 1 } 100% { opacity: .55 } }
 .skeleton { background: var(--border); animation: shimmer 1.4s ease-in-out infinite; border-radius: 6px; }
+
+:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } * { scroll-behavior: auto !important; } }
+@keyframes slide-in { from { transform: translateX(24px); opacity: 0 } to { transform: none; opacity: 1 } }
+.slide-in { animation: slide-in .18s ease-out; }
+@media (prefers-reduced-motion: reduce) { .slide-in { animation: none; } }
+.tnum { font-variant-numeric: tabular-nums; }
