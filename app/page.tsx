@@ -6,14 +6,15 @@ import { StockDetailPanel } from '@/components/StockDetail';
 import { Toast, type ToastData } from '@/components/Toast';
 import { WatchlistView } from '@/components/WatchlistView';
 import { useSentiment } from '@/hooks/useSentiment';
-import { useWatchlist } from '@/hooks/useWatchlist';
+import { useWatchlists } from '@/hooks/useWatchlists';
 
 const up = (s: string) => s.toUpperCase();
 
 export default function Page() {
-  const wl = useWatchlist();
+  const wl = useWatchlists();
   const symbols = useMemo(() => wl.items.map((i) => i.symbol), [wl.items]);
-  const sent = useSentiment(symbols, { onUnknown: wl.drop });
+  const sentSymbols = wl.allSymbols;
+  const sent = useSentiment(sentSymbols, { onUnknown: wl.drop });
   const [tab, setTab] = useState<Tab>('watchlist');
   const [selected, setSelected] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastData | null>(null);
