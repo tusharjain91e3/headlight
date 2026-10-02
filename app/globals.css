@@ -1,26 +1,40 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --bg: #fafaf9;
+  --surface: #ffffff;
+  --border: #e7e5e4;
+  --text: #1c1917;
+  --muted: #78716c;
+  --pos: #16a34a; --pos-bg: #dcfce7;
+  --neu: #ca8a04; --neu-bg: #fef9c3;
+  --neg: #dc2626; --neg-bg: #fee2e2;
+  --unk: #6b7280; --unk-bg: #f3f4f6;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg: #0c0a09;
+    --surface: #171412;
+    --border: #292524;
+    --text: #fafaf9;
+    --muted: #a8a29e;
+    --pos: #4ade80; --pos-bg: #052e16;
+    --neu: #facc15; --neu-bg: #422006;
+    --neg: #f87171; --neg-bg: #450a0a;
+    --unk: #9ca3af; --unk-bg: #1f2937;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@theme inline {
+  --font-sans: var(--font-inter);
 }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+@keyframes shimmer { 0% { opacity: .55 } 50% { opacity: 1 } 100% { opacity: .55 } }
+.skeleton { background: var(--border); animation: shimmer 1.4s ease-in-out infinite; border-radius: 6px; }
