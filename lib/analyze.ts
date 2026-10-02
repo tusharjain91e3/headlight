@@ -22,7 +22,7 @@ export async function analyzeStock(symbol: string, opts: { refresh?: boolean } =
   const stock = getStock(symbol);
   if (!stock) throw new UnknownSymbol(symbol);
   const env = serverEnv();
-  if (env.demo) return demoResult(stock);
+  if (env.demo) return demoResult(stock, { refresh: opts.refresh });
 
   const key = stock.symbol;
   const hit = cache.get(key);

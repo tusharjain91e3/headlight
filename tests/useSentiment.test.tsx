@@ -116,3 +116,67 @@ test('a malformed API payload is an error, not a stored result', async () => {
   await waitFor(() => expect(result.current.status.TCS).toBe('error'));
   expect(result.current.results.TCS).toBeUndefined();
 });
+
+describe('change tracking', () => {
+  const seq = (...labels: SentimentResult['label'][]) => {
+    const f = vi.fn();
+    labels.forEach((l) => f.mockReturnValueOnce(json(mk('TCS', l))));
+    f.mockReturnValue(json(mk('TCS', labels[labels.length - 1])));
+    vi.stubGlobal('fetch', f);
+  };
+
+  test('first-ever result has no change entry', async () => {
+    seq('positive');
+    const { result } = renderHook(() => useSentiment(['TCS']));
+    await waitFor(() => expect(result.current.status.TCS).toBe('ok'));
+    expect(result.current.changes.TCS).toBeUndefined();
+  });
+
+  test('a later different label records the old label', async () => {
+    seq('positive', 'negative');
+    const { result } = renderHook(() => useSentiment(['TCS']));
+    await waitFor(() => expect(result.current.status.TCS).toBe('ok'));
+    act(() => result.current.refresh('TCS'));
+    await waitFor(() => expect(result.current.results.TCS.label).toBe('negative'));
+    expect(result.current.changes.TCS.label).toBe('positive');
+  });
+
+  test('same label again creates no change', async () => {
+    seq('positive', 'positive');
+    const { result } = renderHook(() => useSentiment(['TCS']));
+    await waitFor(() => expect(result.current.status.TCS).toBe('ok'));
+    act(() => result.current.refresh('TCS'));
+    await waitFor(() => expect((globalThis.fetch as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(2));
+    await waitFor(() => expect(result.current.status.TCS).toBe('ok'));
+    expect(result.current.changes.TCS).toBeUndefined();
+  });
+
+  test('transient results never create or update prev', async () => {
+    localStorage.setItem(KEY, JSON.stringify({ TCS: { result: mk('TCS', 'positive'), at: Date.now() - 2 * 3_600_000 } }));
+    vi.stubGlobal('fetch', vi.fn(() => json({ ...mk('TCS', 'cannot_determine'), transient: true })));
+    const { result } = renderHook(() => useSentiment(['TCS']));
+    await waitFor(() => expect(result.current.results.TCS.label).toBe('cannot_determine'));
+    expect(result.current.changes.TCS).toBeUndefined();
+    expect(JSON.parse(localStorage.getItem(KEY)!).TCS.prev).toBeUndefined();
+  });
+
+  test('prev persists and is restored on remount', async () => {
+    seq('positive', 'negative');
+    const first = renderHook(() => useSentiment(['TCS']));
+    await waitFor(() => expect(first.result.current.status.TCS).toBe('ok'));
+    act(() => first.result.current.refresh('TCS'));
+    await waitFor(() => expect(first.result.current.changes.TCS?.label).toBe('positive'));
+    first.unmount();
+    vi.stubGlobal('fetch', vi.fn());
+    const second = renderHook(() => useSentiment(['TCS']));
+    await waitFor(() => expect(second.result.current.changes.TCS?.label).toBe('positive'));
+  });
+
+  test('prev older than 7 days in storage is ignored', async () => {
+    localStorage.setItem(KEY, JSON.stringify({ TCS: { result: mk('TCS', 'negative'), at: Date.now(), prev: { label: 'positive', changedAt: Date.now() - 8 * 86_400_000 } } }));
+    vi.stubGlobal('fetch', vi.fn());
+    const { result } = renderHook(() => useSentiment(['TCS']));
+    await waitFor(() => expect(result.current.results.TCS?.label).toBe('negative'));
+    expect(result.current.changes.TCS).toBeUndefined();
+  });
+});

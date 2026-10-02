@@ -91,8 +91,23 @@ function generic(stock: Stock): Seed {
   };
 }
 
-export function demoResult(stock: Stock): SentimentResult {
-  const seed = SEEDS[stock.symbol.toUpperCase()] ?? generic(stock);
+// Demo-only: a manual refresh rotates the label of these stocks so the "what changed" badge can be shown live.
+const FLIP = new Set(['TCS', 'RELIANCE', 'ADANIENT', 'IDEA']);
+const ROT: Label[] = ['positive', 'neutral', 'negative'];
+const flips = new Map<string, number>();
+
+export function resetDemoFlips(): void {
+  flips.clear();
+}
+
+export function demoResult(stock: Stock, opts: { refresh?: boolean } = {}): SentimentResult {
+  const sym = stock.symbol.toUpperCase();
+  const base = SEEDS[sym] ?? generic(stock);
+  if (opts.refresh && FLIP.has(sym)) flips.set(sym, (flips.get(sym) ?? 0) + 1);
+  const n = flips.get(sym) ?? 0;
+  const seed: Seed = n > 0
+    ? { ...base, label: ROT[(Math.max(0, ROT.indexOf(base.label)) + n) % 3], confidence: 0.7, rationale: 'Coverage has shifted since the last check.' }
+    : base;
   const now = Date.now();
   const articles: LabeledArticle[] = seed.items.map(([title, source, label, reason, hoursAgo]) => ({
     title, snippet: '', source, url: 'https://news.google.com', published_at: new Date(now - hoursAgo * 3_600_000).toISOString(), label, reason,

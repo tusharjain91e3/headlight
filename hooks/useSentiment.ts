@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { activeChange, nextPrev, type Prev } from '@/lib/changes';
 import { logApiError } from '@/lib/client-log';
 import { LABEL_ORDER } from '@/lib/sentiment-ui';
 import type { SentimentResult } from '@/lib/types';
@@ -18,7 +19,7 @@ function isResult(v: unknown): v is SentimentResult {
     && Array.isArray(r.articles) && typeof r.generated_at === 'string';
 }
 
-type Cache = Record<string, { result: SentimentResult; at: number }>;
+type Cache = Record<string, { result: SentimentResult; at: number; prev?: Prev }>;
 
 function readCache(): Cache {
   try {
@@ -26,7 +27,11 @@ function readCache(): Cache {
     if (!p || typeof p !== 'object' || Array.isArray(p)) return {};
     const clean: Cache = {};
     for (const [k, v] of Object.entries(p as Cache)) {
-      if (v && typeof v.at === 'number' && isResult(v.result)) clean[k] = v;
+      if (v && typeof v.at === 'number' && isResult(v.result)) {
+        const pv = v.prev;
+        const validPrev = pv && LABEL_ORDER.includes(pv.label) && typeof pv.changedAt === 'number';
+        clean[k] = validPrev ? v : { result: v.result, at: v.at };
+      }
     }
     return clean;
   } catch {
@@ -45,6 +50,7 @@ export function useSentiment(symbols: string[], opts: { onUnknown?: (symbol: str
   const [results, setResults] = useState<Record<string, SentimentResult>>({});
   const [status, setStatus] = useState<Record<string, Status>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [prevs, setPrevs] = useState<Record<string, Prev>>({});
 
   const cacheRef = useRef<Cache>({});
   const hydrated = useRef(false);
@@ -57,8 +63,14 @@ export function useSentiment(symbols: string[], opts: { onUnknown?: (symbol: str
   const store = useCallback((result: SentimentResult) => {
     const k = up(result.symbol);
     if (!result.transient) {
-      cacheRef.current = { ...cacheRef.current, [k]: { result, at: Date.now() } };
+      const now = Date.now();
+      const prev = nextPrev(cacheRef.current[k], result.label, now);
+      cacheRef.current = { ...cacheRef.current, [k]: { result, at: now, ...(prev ? { prev } : {}) } };
       writeCache(cacheRef.current);
+      setPrevs((m) => {
+        if (!prev) return m;
+        return { ...m, [k]: prev };
+      });
     }
     setResults((r) => ({ ...r, [k]: result }));
     setStatus((s) => ({ ...s, [k]: 'ok' }));
@@ -116,8 +128,13 @@ export function useSentiment(symbols: string[], opts: { onUnknown?: (symbol: str
       hydrated.current = true;
       cacheRef.current = readCache();
       const fromCache: Record<string, SentimentResult> = {};
-      for (const [k, v] of Object.entries(cacheRef.current)) if (v?.result) fromCache[k] = v.result;
+      const fromPrevs: Record<string, Prev> = {};
+      for (const [k, v] of Object.entries(cacheRef.current)) {
+        if (v?.result) fromCache[k] = v.result;
+        if (v?.prev) fromPrevs[k] = v.prev;
+      }
       setResults(fromCache);
+      setPrevs(fromPrevs);
     }
     for (const sym of symbols) {
       const k = up(sym);
@@ -144,5 +161,16 @@ export function useSentiment(symbols: string[], opts: { onUnknown?: (symbol: str
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [results, key]);
 
-  return { results, status, errors, refresh, refreshAll, lastUpdated, put: store };
+  const changes = useMemo(() => {
+    const out: Record<string, Prev> = {};
+    const now = Date.now();
+    for (const [k, prev] of Object.entries(prevs)) {
+      const cur = results[k];
+      const c = cur && activeChange(prev, cur.label, now);
+      if (c) out[k] = c;
+    }
+    return out;
+  }, [prevs, results]);
+
+  return { results, status, errors, changes, refresh, refreshAll, lastUpdated, put: store };
 }
