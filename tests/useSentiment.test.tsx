@@ -180,3 +180,49 @@ describe('change tracking', () => {
     expect(result.current.changes.TCS).toBeUndefined();
   });
 });
+
+describe('options', () => {
+  test('concurrency: 2 never exceeds 2 in flight', async () => {
+    let active = 0, peak = 0;
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      active++; peak = Math.max(peak, active);
+      await new Promise((r) => setTimeout(r, 15));
+      active--;
+      return new Response(JSON.stringify(mk(symOf(url))), { status: 200 });
+    }));
+    const syms = ['A', 'B', 'C', 'D', 'E', 'F'];
+    const { result } = renderHook(() => useSentiment(syms, { concurrency: 2 }));
+    await waitFor(() => expect(Object.keys(result.current.results)).toHaveLength(6));
+    expect(peak).toBe(2);
+  });
+
+  test('auto:false fetches nothing until scan()', async () => {
+    const f = vi.fn((url: string) => json(mk(symOf(url))));
+    vi.stubGlobal('fetch', f);
+    const { result } = renderHook(() => useSentiment(['A', 'B'], { auto: false }));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(f).not.toHaveBeenCalled();
+    act(() => result.current.scan());
+    await waitFor(() => expect(Object.keys(result.current.results).sort()).toEqual(['A', 'B']));
+  });
+
+  test('scan skips symbols with a fresh cached result', async () => {
+    localStorage.setItem(KEY, JSON.stringify({ A: { result: mk('A'), at: Date.now() } }));
+    const f = vi.fn((url: string) => json(mk(symOf(url))));
+    vi.stubGlobal('fetch', f);
+    const { result } = renderHook(() => useSentiment(['A', 'B'], { auto: false }));
+    act(() => result.current.scan());
+    await waitFor(() => expect(result.current.status.B).toBe('ok'));
+    expect(f).toHaveBeenCalledTimes(1);
+    expect(result.current.status.A).toBe('ok');
+  });
+
+  test('scanning twice while in flight does not double-fetch', async () => {
+    const f = vi.fn(async (url: string) => { await new Promise((r) => setTimeout(r, 30)); return new Response(JSON.stringify(mk(symOf(url))), { status: 200 }); });
+    vi.stubGlobal('fetch', f);
+    const { result } = renderHook(() => useSentiment(['A', 'B'], { auto: false }));
+    act(() => { result.current.scan(); result.current.scan(); });
+    await waitFor(() => expect(Object.keys(result.current.results)).toHaveLength(2));
+    expect(f).toHaveBeenCalledTimes(2);
+  });
+});

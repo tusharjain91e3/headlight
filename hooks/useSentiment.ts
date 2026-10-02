@@ -9,7 +9,6 @@ export type Status = 'loading' | 'ok' | 'error' | 'stale';
 
 const KEY = 'stockfeed:sentiment:v1';
 const TTL_MS = 60 * 60_000;
-const CONCURRENCY = 3;
 const up = (s: string) => s.trim().toUpperCase();
 
 function isResult(v: unknown): v is SentimentResult {
@@ -46,7 +45,10 @@ function writeCache(c: Cache) {
   }
 }
 
-export function useSentiment(symbols: string[], opts: { onUnknown?: (symbol: string) => void } = {}) {
+export function useSentiment(
+  symbols: string[],
+  opts: { onUnknown?: (symbol: string) => void; concurrency?: number; auto?: boolean } = {},
+) {
   const [results, setResults] = useState<Record<string, SentimentResult>>({});
   const [status, setStatus] = useState<Record<string, Status>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -59,6 +61,10 @@ export function useSentiment(symbols: string[], opts: { onUnknown?: (symbol: str
   const active = useRef(0);
   const onUnknown = useRef(opts.onUnknown);
   onUnknown.current = opts.onUnknown;
+  const concurrency = useRef(opts.concurrency ?? 3);
+  concurrency.current = opts.concurrency ?? 3;
+  const auto = useRef(opts.auto ?? true);
+  auto.current = opts.auto ?? true;
 
   const store = useCallback((result: SentimentResult) => {
     const k = up(result.symbol);
@@ -103,7 +109,7 @@ export function useSentiment(symbols: string[], opts: { onUnknown?: (symbol: str
   }, [store]);
 
   const pump = useCallback(() => {
-    while (active.current < CONCURRENCY && queue.current.length) {
+    while (active.current < concurrency.current && queue.current.length) {
       const job = queue.current.shift()!;
       active.current++;
       load(job.sym, job.force).finally(() => {
@@ -123,6 +129,23 @@ export function useSentiment(symbols: string[], opts: { onUnknown?: (symbol: str
   }, [pump]);
 
   const key = symbols.map(up).join(',');
+
+  // Marks fresh cached symbols ok; enqueues the rest when `enqueueMissing` is true.
+  const syncOrEnqueue = (enqueueMissing: boolean) => {
+    for (const sym of symbols) {
+      const k = up(sym);
+      const entry = cacheRef.current[k];
+      if (entry && Date.now() - entry.at < TTL_MS) setStatus((s) => ({ ...s, [k]: 'ok' }));
+      else if (enqueueMissing) enqueue(sym, false);
+    }
+  };
+  const scan = () => {
+    if (!hydrated.current) {
+      hydrated.current = true;
+      cacheRef.current = readCache();
+    }
+    syncOrEnqueue(true);
+  };
   useEffect(() => {
     if (!hydrated.current) {
       hydrated.current = true;
@@ -136,15 +159,7 @@ export function useSentiment(symbols: string[], opts: { onUnknown?: (symbol: str
       setResults(fromCache);
       setPrevs(fromPrevs);
     }
-    for (const sym of symbols) {
-      const k = up(sym);
-      const entry = cacheRef.current[k];
-      if (entry && Date.now() - entry.at < TTL_MS) {
-        setStatus((s) => ({ ...s, [k]: 'ok' }));
-      } else {
-        enqueue(sym, false);
-      }
-    }
+    syncOrEnqueue(auto.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, enqueue]);
 
@@ -172,5 +187,5 @@ export function useSentiment(symbols: string[], opts: { onUnknown?: (symbol: str
     return out;
   }, [prevs, results]);
 
-  return { results, status, errors, changes, refresh, refreshAll, lastUpdated, put: store };
+  return { results, status, errors, changes, scan, refresh, refreshAll, lastUpdated, put: store };
 }
