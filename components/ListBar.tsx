@@ -33,7 +33,7 @@ export function ListBar({ lists, activeId, onSelect, onCreate, onRename, onDelet
           <input key={l.id} autoFocus value={draft} maxLength={NAME_MAX + 5} aria-label="Watchlist name"
             onChange={(e) => { setDraft(e.target.value); setError(''); }}
             onKeyDown={(e) => { if (e.key === 'Enter') commit(); else if (e.key === 'Escape') cancel(); }}
-            onBlur={cancel}
+            onFocus={(e) => e.currentTarget.select()} onBlur={cancel}
             className="w-44 shrink-0 rounded-full border border-[var(--text)] bg-[var(--surface)] px-3.5 py-1.5 text-sm outline-none" />
         ) : (
           <button key={l.id} type="button" role="tab" aria-selected={l.id === active.id} onClick={() => onSelect(l.id)}
