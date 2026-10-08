@@ -11,6 +11,23 @@ Shine a light on the news behind your stocks. Headlight reads the last 7 days of
 
 > Sentiment is generated automatically from headlines and snippets. It is not investment advice.
 
+## How it works
+
+```
+Browser (localStorage: watchlist + last results)
+   └─ GET /api/sentiment/[symbol]   (concurrency 3, one stock per call)
+        ├─ cache (in-memory TTL)  ── hit → return
+        ├─ SerpApi google_news     "<company>" NSE stock when:7d
+        ├─ filter: 7-day window, dedupe, relevance, cap 10
+        ├─ OpenRouter: ONE call per stock → per-article labels + overall
+        └─ aggregate: ≥60% rule, 48h recency 1.5×, confidence < 0.4 → Cannot determine
+```
+![Headlight app screenshot](/data/image.png)
+- Zero recent articles skips the LLM entirely ("No recent news.").
+- Invalid LLM JSON gets one repair retry, then falls back to Cannot determine.
+- API keys are only read in route handlers and never reach the browser.
+- Manual refresh is limited to once per stock every 5 minutes.
+
 ## Run it
 
 ```bash
@@ -33,22 +50,6 @@ No keys yet? Set `DEMO_MODE=1` in `.env.local` to serve canned sample results. I
 | `NEXT_PUBLIC_MAX_WATCHLIST_SIZE` | Default 25 |
 | `DEMO_MODE` | `1` = canned results, no keys needed |
 
-## How it works
-
-```
-Browser (localStorage: watchlist + last results)
-   └─ GET /api/sentiment/[symbol]   (concurrency 3, one stock per call)
-        ├─ cache (in-memory TTL)  ── hit → return
-        ├─ SerpApi google_news     "<company>" NSE stock when:7d
-        ├─ filter: 7-day window, dedupe, relevance, cap 10
-        ├─ OpenRouter: ONE call per stock → per-article labels + overall
-        └─ aggregate: ≥60% rule, 48h recency 1.5×, confidence < 0.4 → Cannot determine
-```
-
-- Zero recent articles skips the LLM entirely ("No recent news.").
-- Invalid LLM JSON gets one repair retry, then falls back to Cannot determine.
-- API keys are only read in route handlers and never reach the browser.
-- Manual refresh is limited to once per stock every 5 minutes.
 
 ## Notes
 
